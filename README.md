@@ -4,7 +4,7 @@
 
 ### Install Postgres:
 
-If you're on a Mac, download the Postgres App here: http://postgresapp.com/ If you're on Windows or Linus, you're on your own. Haven't had much experience with that, but should be pretty straight forward. Just make sure you have a Postgres server running at localhost:5432 (the default I believe)
+If you're on a Mac, download the Postgres App here: http://postgresapp.com/ If you're on Windows or Linux, you're on your own. Haven't had much experience with that, but should be pretty straight forward. Just make sure you have a Postgres server running at localhost:5432 (the default I believe)
 
 ### Install Rails
 
