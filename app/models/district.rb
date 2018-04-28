@@ -1,0 +1,3 @@
+class District < ApplicationRecord
+  
+end

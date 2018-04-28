@@ -1,5 +1,5 @@
 default: &default
-  adapter: postgresql
+  adapter: postgis
   host: localhost
   pool: 5
   timeout: 5000

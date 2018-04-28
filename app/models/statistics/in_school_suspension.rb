@@ -1,0 +1,3 @@
+class InSchoolSuspension < Statistic
+  
+end

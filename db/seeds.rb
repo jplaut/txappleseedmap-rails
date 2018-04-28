@@ -5,3 +5,7 @@
 #
 #   movies = Movie.create([{ name: 'Star Wars' }, { name: 'Lord of the Rings' }])
 #   Character.create(name: 'Luke', movie: movies.first)
+# 'SPE', 'ECO','HIS','BLA', 'WHI','IND', 'ASI','PCI', 'TWO', 'ALL'
+['SPE', 'ECO','HIS','BLA', 'WHI','IND', 'ASI','PCI', 'TWO', 'ALL'].each do |eth|
+  Ethnicity.create!(name: eth)
+end
