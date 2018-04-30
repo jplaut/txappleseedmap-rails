@@ -23,6 +23,7 @@ gem 'underscore-rails'
 gem 'rgeo'
 gem 'rgeo-geojson'
 gem 'activerecord-postgis-adapter'
+gem 'sucker_punch'
 
 # Use CoffeeScript for .coffee assets and views
 gem 'coffee-rails', '~> 4.2'

@@ -6,6 +6,8 @@ class Statistic < ApplicationRecord
     OSS: 'OutOfSchoolSuspension'
   }
 
+  validates_presence_of :district_id, :ethnicity_id, :year, :relative_percentage, :total_population
+
   belongs_to :district
   belongs_to :ethnicity
 end
