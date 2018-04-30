@@ -5,8 +5,8 @@ class CreateStatistics < ActiveRecord::Migration[5.2]
       t.string :year # no need for a bigint or datetime here at this point
       t.integer :ethnicity_id
       t.references :district
-      t.integer :relative_percentage
-      t.integer :total_population
+      t.float :relative_percentage
+      t.float :total_population
     end
 
     add_index :statistics, :ethnicity_id

@@ -125,6 +125,7 @@ Map.prototype.clearGeojsonLayer = function() {
 
 // Loads data from GeoJSON file and adds layer to map
 Map.prototype.loadGeojsonLayer = function(dataKey, geoJsonOptions) {
+  debugger
   // Get path to data file
   var path = this.dataFiles[dataKey];
   //console.log(path + " is the path and " + dataKey + " is the key " + JSON.stringify(geoJsonOptions));
