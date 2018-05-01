@@ -1,18 +1,3 @@
-// Copyright (c) 2013 Ryan Clark
-// https://gist.github.com/rclark/5779673
-L.TopoJSON = L.GeoJSON.extend({
-  addData: function(jsonData) {
-    if (jsonData.type === "Topology") {
-      for (key in jsonData.objects) {
-        geojson = topojson.feature(jsonData, jsonData.objects[key]);
-        L.GeoJSON.prototype.addData.call(this, geojson);
-      }
-    } else {
-      L.GeoJSON.prototype.addData.call(this, jsonData);
-    }
-  }
-});
-
 var Map = function() {};
 
 Map.prototype.setUp = function() {
@@ -22,12 +7,13 @@ Map.prototype.setUp = function() {
     punishments = this.punishments,
     groups = this.groups,
     stripes = this.stripes,
+    stats = {},
     options = this.getOptions();
-  // Adds tileLayer from the Map Class to the mapObject
-  stripes.addTo(mapObject); //adding pattern definition to mapObject
-  tileLayer.addTo(mapObject);
-  //this.requestInitialData(options);
-  this.loadGeojsonLayer(this.dataSet, options);
+    // Adds tileLayer from the Map Class to the mapObject
+    stripes.addTo(mapObject); //adding pattern definition to mapObject
+    tileLayer.addTo(mapObject);
+    //this.requestInitialData(options);
+    this.loadDistrictLayer();
 };
 
 
@@ -102,43 +88,53 @@ Map.prototype.handleDataToggleClick = function(e) {
   //remove active button style
   $(".selector__button").removeClass("selector__button--active");
   console.log("Me me me");
-  var thiz = e.data.context,
-    dataLayer = GEODATA;
+  var thiz = e.data.context
   thiz.population = typeof $(this).data("group-id") === 'number' ? $(this).data("group-id") : $(e.target).val();
   var options = thiz.getOptions();
   //console.log(thiz);
   // change toggle button CSS to indicate "active"
   $(this).addClass("selector__button--active");
   // remove existing layer for previous group
-  thiz.clearGeojsonLayer.call(thiz);
 
-  thiz.addDataToMap(dataLayer, thiz.mapObject, options)
+  thiz.fetchStatistics(thiz.population, )
 };
 
-Map.prototype.clearGeojsonLayer = function() {
-  var map = this.mapObject;
-  // Remove all layers which have 'feature' properties
-  map.eachLayer(function(layer) {
-    if (layer.feature) map.removeLayer(layer);
-  });
-};
+Map.prototype.fetchStatistics = function(ethnicity, action, cb) {
+  debugger
+  if (this.stats[this.cacheKey(ethnicity, action)]) {
+    cb(this.stats[this.cacheKey(ethnicity, action)])
+  } else {
+    var thiz = this
+
+    return $.ajax({
+      dataType: "json",
+      url: '/api/v1/statistics?ethnicity_name=' + ethnicity + '&year=2016&action_type=' + action,
+      context: this,
+      success: function(data) {
+        debugger
+        stats[thiz.cacheKey(ethnicity, action)] = data
+        if (cb) cb(data)
+      },
+    });
+  }
+}
+
+Map.prototype.cacheKey = function(ethnicity, action) {
+  return ethnicity + ':' + action
+}
 
 // Loads data from GeoJSON file and adds layer to map
-Map.prototype.loadGeojsonLayer = function(dataKey, geoJsonOptions) {
-  debugger
-  // Get path to data file
-  var path = this.dataFiles[dataKey];
-  //console.log(path + " is the path and " + dataKey + " is the key " + JSON.stringify(geoJsonOptions));
-  // Load data from file
-  $.ajax({
+Map.prototype.loadDistrictLayer = function(cb) {
+  var thiz = this
+  return $.ajax({
     dataType: "json",
-    geoJsonOptions: geoJsonOptions,
-    url: path,
+    url: '/api/v1/districts',
     context: this,
     success: function(data) {
       // Add the data layer to the map
-      this.addDataToMap(data, this.mapObject, geoJsonOptions);
-      window.GEODATA = data;
+      thiz.districtLayer = L.geoJSON(data)
+      this.districtLayer.addTo(thiz.mapObject)
+      if (cb) cb(data)
     },
   });
 
@@ -151,8 +147,7 @@ Map.prototype.selectData = function(dataKey) {
    from the corresponding GeoJSON file.
    */
 
-  // Clear old layers
-  this.clearGeojsonLayer();
+  var thiz = this
   this.dataSet = dataKey;
   /*if(typeof dataKey !== 'undefined'){
       console.log(dataKey + " in clearGeojsonLayer");
@@ -160,24 +155,14 @@ Map.prototype.selectData = function(dataKey) {
       console.log("dataKey is undefined here in clearGeojsonLayer")
   }*/
   // Add new layer
-  this.loadGeojsonLayer(dataKey, this.getOptions(dataKey, this.population));
+  debugger
+  this.fetchStatistics(thiz.population, dataKey, function(data) {
+    thiz.addDataToMap(data)
+  });
 };
 
-Map.prototype.addDataToMap = function(data, map, options) {
-  var districtNames = [];
-  var layers = new Object();
-  //var dataLayer = L.geoJson(data, options);
-  this.dataLayer = new L.TopoJSON(null, options);
-  this.dataLayer.addData(data);
-  var thiz = this;
-  for (var key in this.dataLayer._layers) {
-    var dName = this.dataLayer._layers[key].feature.properties.district_name;
-    if (dName) {
-      districtNames.push(dName);
-      layers[dName] = this.dataLayer._layers[key];
-    }
-  }
-  this.dataLayer.addTo(map);
+Map.prototype.addDataToMap = function(data) {
+  debugger
 
 
   //console.log(data);  //.objects.simple_oss.geometries.properties.district_name);
@@ -309,15 +294,6 @@ Map.prototype.init = function(containerDivId, mapDivId) {
     "AltEdu": "AltEdu",
     "OSS": "OSS",
     "ISS": "ISS"
-  };
-
-  // Dictionary that maps option values to GeoJSON data file paths
-  this.dataFiles = {
-    "Expulsion": "/data/expulsion_topo.json",
-    "AltEdu": "/data/altedu_topo.json",
-    "OSS": "/data/oss_topo.json",
-    //"OSS"       : "geojson/simple_oss.geojson",
-    "ISS": "/data/iss_topo.json"
   };
 
   this.groupPercentCode = [
