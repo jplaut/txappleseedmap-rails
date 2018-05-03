@@ -1,24 +1,111 @@
 var Map = function() {};
 
-Map.prototype.setUp = function() {
-  var mapClass = this,
+Map.prototype.TILE_LAYER = L.tileLayer("https://cartodb-basemaps-{s}.global.ssl.fastly.net/light_all/{z}/{x}/{y}.png", {
+  maxZoom: 19,
+  attribution: '&copy; <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors, &copy; <a href="https://cartodb.com/attributions">CartoDB</a>'
+});
+
+Map.prototype.GROUPS = {
+  black_or_african_american: "African American students",
+  asian: "Asian students",
+  hispanic_latino: "Latino students",
+  american_indian_or_alaska_nat: "Native American students",
+  special_education: "Special Education students",
+  two_or_more_races: "Students of two or More Races",
+  white: "White students",
+  // native_hawaiian_other_pacific:
+  //"economic_disadvantage"
+];
+
+Map.prototype.PUNISHMENT_TYPES = {
+  "Expulsion": { label: "expulsion actions", code: "Expulsion" },
+  "AltEdu": { label: "alternative placements", code: "AltEdu" },
+  "OSS": { label: "out-of-school suspensions", code: "OSS" },
+  "ISS": { label: "in-school suspensions", code: "ISS" }
+};
+
+Map.prototype.GROUP_PERCENT_CODES = [
+  "DPETBLAP", // black
+  "DPETASIP", // asian?
+  "DPETHISP", // latino?
+  "DPETINDP", // native american?
+  "DPETSPEP", // special ed?
+  "DPETTWOP", // multi-ethnic?
+  "DPETWHIP", // white?
+];
+
+// Default Stripes.
+Map.prototype.STRIPE_PATTERN = new L.StripePattern({
+  weight: 1,
+  spaceWeight: .5,
+  color: '#b3b3b3',
+  angle: 45
+});
+
+Map.prototype.DEFAULT_PUNISHMENT_TYPE = 'OSS'
+Map.prototype.DEFAULT_YEAR = "2016"
+Map.prototype.DEFAULT_ETHNICITY = "black_or_african_american"
+
+Map.prototype.init = function(containerDivId, mapDivId) {
+  this.$el = $( "#" + containerDivId );
+  this.data = {}
+  this.punishmentType = this.DEFAULT_PUNISHMENT_TYPE
+  this.year = this.DEFAULT_YEAR
+  this.ethnicity = this.DEFAULT_ETHNICITY
+
+  this.population = 0;
+
+  this.map = new L.Map(mapDivId, {
+    center: [31.50, -98.41], // Johnson City
+    zoom: 7
+  });
+
+  this.addListeners()
+  this.createMap()
+}
+
+Map.prototype.addListeners = function() {
+  var self = this
+  this.$el.find(".selector__button").on("click", this.handleDataToggleClick.bind(this));
+  $(".student_characteristic_selector").on("change", this.handleDataToggleClick.bind(this));
+
+  // Attach event handler to drop-down menu to update data after
+  // selection changed.
+  $("#dropdown").on("change", function(event) {
+    // Get the selection from the drop-down menu
+    var key = event.currentTarget.value;
+    console.log("In dropdown " + key);
+    // Load the data from the corresponding file
+    $('.selector__title').text(this.PUNISHMENT_TYPES[key].label)
+    self.fetchStatistics(key).then(function(stats) {
+
+    });
+  })
+}
+
+Map.prototype.createMap = function() {
+  var self = this,
     mapObject = this.mapObject,
-    tileLayer = this.tileLayer,
-    punishments = this.punishments,
-    groups = this.groups,
-    stripes = this.stripes,
-    stats = {},
     options = this.getOptions();
     // Adds tileLayer from the Map Class to the mapObject
-    stripes.addTo(mapObject); //adding pattern definition to mapObject
-    tileLayer.addTo(mapObject);
+    this.STRIPE_PATTERN.addTo(mapObject); //adding pattern definition to mapObject
+    this.TILE_LAYER.addTo(mapObject);
     //this.requestInitialData(options);
-    this.loadDistrictLayer();
+    this.loadDistrictLayer(function(data) {
+      var districtLayer = L.geoJSON(data)
+      districtLayer.addTo(self.mapObject)
+      self.createPopups(data, districtLayer)
+    });
 };
+
+Map.prototype.createPopups = function() {
+
+}
 
 
 Map.prototype.getOptions = function() {
-  var getFillColor = this.getFillColor,
+  debugger
+  var self = this,
     sentenceCase = this.sentenceCase,
     stripes = this.stripes,
     fischerValue = this.dataSet + "_scale_" + this.groups[this.population],
@@ -29,13 +116,12 @@ Map.prototype.getOptions = function() {
     schoolYear = this.schoolYear;
 
   return {
-
-    style: function style(feature) {
+    style: function(feature) {
       var value = (feature.properties[fischerValue]);
       var dname = feature.properties.district_name;
       if (value == null) {
         return {
-          fillColor: getFillColor(Number(feature.properties[fischerValue])),
+          fillColor: self.getFillColor(Number(feature.properties[fischerValue])),
           fillPattern: stripes,
           weight: 1,
           opacity: 1,
@@ -44,7 +130,7 @@ Map.prototype.getOptions = function() {
         }
       } else {
         return {
-          fillColor: getFillColor(Number(feature.properties[fischerValue])),
+          fillColor: self.getFillColor(Number(feature.properties[fischerValue])),
           weight: 1,
           opacity: 1,
           color: '#b3b3b3',
@@ -88,56 +174,49 @@ Map.prototype.handleDataToggleClick = function(e) {
   //remove active button style
   $(".selector__button").removeClass("selector__button--active");
   console.log("Me me me");
-  var thiz = e.data.context
-  thiz.population = typeof $(this).data("group-id") === 'number' ? $(this).data("group-id") : $(e.target).val();
-  var options = thiz.getOptions();
+  this.population = typeof $(this).data("group-id") === 'number' ? $(this).data("group-id") : $(e.target).val();
+  var options = this.getOptions();
   //console.log(thiz);
   // change toggle button CSS to indicate "active"
-  $(this).addClass("selector__button--active");
+  $(e.currentTarget).addClass("selector__button--active");
   // remove existing layer for previous group
 
   thiz.fetchStatistics(thiz.population, )
 };
 
-Map.prototype.fetchStatistics = function(ethnicity, action, cb) {
-  debugger
-  if (this.stats[this.cacheKey(ethnicity, action)]) {
-    cb(this.stats[this.cacheKey(ethnicity, action)])
-  } else {
-    var thiz = this
+Map.prototype.fetchStatistics = function(year, ethnicity, action, cb) {
+  var cacheKey = this.cacheKey(year, ethnicity, action)
 
+  if (this.stats[cacheKey]) {
+    return cb(this.stats[cacheKey])
+  } else {
     return $.ajax({
       dataType: "json",
-      url: '/api/v1/statistics?ethnicity_name=' + ethnicity + '&year=2016&action_type=' + action,
+      url: '/api/v1/statistics?ethnicity_name=' + ethnicity + '&year=' + year '&action_type=' + action,
       context: this,
       success: function(data) {
-        debugger
-        stats[thiz.cacheKey(ethnicity, action)] = data
-        if (cb) cb(data)
+        this.stats[cacheKey] = data
+        cb(data)
       },
+      error: function(err) {
+        console.log("ERROR:", err)
+      }
     });
   }
 }
 
-Map.prototype.cacheKey = function(ethnicity, action) {
-  return ethnicity + ':' + action
+Map.prototype.cacheKey = function(year, ethnicity, action) {
+  return year + ':' + ethnicity + ':' + action
 }
 
 // Loads data from GeoJSON file and adds layer to map
 Map.prototype.loadDistrictLayer = function(cb) {
-  var thiz = this
   return $.ajax({
     dataType: "json",
     url: '/api/v1/districts',
     context: this,
-    success: function(data) {
-      // Add the data layer to the map
-      thiz.districtLayer = L.geoJSON(data)
-      this.districtLayer.addTo(thiz.mapObject)
-      if (cb) cb(data)
-    },
+    success: callback
   });
-
 };
 
 // Update data after selection is made
@@ -227,119 +306,6 @@ Map.prototype.getFillColor = function(d) {
     d <= 1 ? red[5] :
     gray;
 };
-
-Map.prototype.init = function(containerDivId, mapDivId) {
-  this.$el = $( "#" + containerDivId );
-  // Rename 'this' for use in callbacks
-  var thisMap = this;
-  this.dataSet = "OSS";
-  this.population = 0;
-  this.hilight_layer = null;
-  this.dataLayer = null;
-  this.schoolYear = "2015-2016"
-
-  this.mapObject = new L.Map(mapDivId, {
-    center: [31.50, -98.41], // Johnson City
-    zoom: 7
-  });
-
-  /*  this.tileLayer = L.tileLayer('https://tile.stamen.com/toner/{z}/{x}/{y}.png', {
-      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">Stamen</a> contributors'
-  }); */
-
-  this.tileLayer = L.tileLayer("https://cartodb-basemaps-{s}.global.ssl.fastly.net/light_all/{z}/{x}/{y}.png", {
-    maxZoom: 19,
-    attribution: '&copy; <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors, &copy; <a href="https://cartodb.com/attributions">CartoDB</a>'
-  });
-
-  this.groups = [
-    "black_or_african_american",
-    "asian",
-    "hispanic_latino",
-    "american_indian_or_alaska_nat",
-    "special_education",
-    "two_or_more_races",
-    "white",
-    "native_hawaiian_other_pacific"
-    //"economic_disadvantage"
-  ];
-
-  this.groupDisplayName = [
-    "African American students",
-    "Asian students",
-    "Latino students",
-    "Native American students",
-    "Special Education students",
-    "Students of two or More Races",
-    "White students"
-  ];
-
-  this.displaypunishment = {
-    "Expulsion": "expulsion actions",
-    "AltEdu": "alternative placements",
-    "OSS": "out-of-school suspensions",
-    "ISS": "in-school suspensions"
-  };
-
-  /*
-    this.punishments = {
-        "Expulsion" : "D-EXPULSION ACTIONS",
-        "AltEdu"    : "E-DAEP PLACEMENTS",
-        "OSS"       : "F-OUT OF SCHOOL SUSPENSIONS",
-        "ISS"       : "G-IN SCHOOL SUSPENSIONS"
-    }; */
-
-  this.punishments = {
-    "Expulsion": "Expulsion",
-    "AltEdu": "AltEdu",
-    "OSS": "OSS",
-    "ISS": "ISS"
-  };
-
-  this.groupPercentCode = [
-    "DPETBLAP", // black
-    "DPETASIP", // asian?
-    "DPETHISP", // latino?
-    "DPETINDP", // native american?
-    "DPETSPEP", // special ed?
-    "DPETTWOP", // multi-ethnic?
-    "DPETWHIP", // white?
-  ];
-
-  // Default Stripes.
-  this.stripes = new L.StripePattern({
-    weight: 1,
-    spaceWeight: .5,
-    color: '#b3b3b3',
-    angle: 45
-  });
-
-
-  this.$el.find(".selector__button").on("click", {
-    context: this
-  }, this.handleDataToggleClick);
-  $(".student_characteristic_selector").on("change", {
-    context: this
-  }, this.handleDataToggleClick);
-
-  // Attach event handler to drop-down menu to update data after
-  // selection changed.
-  $("#dropdown").on(
-    "change", {
-      context: this
-    },
-    function(event) {
-
-      // Get the selection from the drop-down menu
-      this.dataSet = $("#dropdown").find("option:selected").val();
-      //console.log("In dropdown " + this.dataSet);
-      // Load the data from the corresponding file
-      thisMap.selectData(this.dataSet);
-      $('.selector__title').html(event.data.context.displaypunishment[this.dataSet]);
-    }
-  );
-  this.setUp();
-}
 
 $(function() {
   var map = new Map();
