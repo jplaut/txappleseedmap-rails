@@ -15,7 +15,7 @@ Map.prototype.GROUPS = {
   white: "White students",
   // native_hawaiian_other_pacific:
   //"economic_disadvantage"
-];
+};
 
 Map.prototype.PUNISHMENT_TYPES = {
   "Expulsion": { label: "expulsion actions", code: "Expulsion" },
@@ -34,13 +34,7 @@ Map.prototype.GROUP_PERCENT_CODES = [
   "DPETWHIP", // white?
 ];
 
-// Default Stripes.
-Map.prototype.STRIPE_PATTERN = new L.StripePattern({
-  weight: 1,
-  spaceWeight: .5,
-  color: '#b3b3b3',
-  angle: 45
-});
+
 
 Map.prototype.DEFAULT_PUNISHMENT_TYPE = 'OSS'
 Map.prototype.DEFAULT_YEAR = "2016"
@@ -84,11 +78,18 @@ Map.prototype.addListeners = function() {
 }
 
 Map.prototype.createMap = function() {
+  // Default Stripes.
+  let stripes = new L.StripePattern({
+    weight: 1,
+    spaceWeight: .5,
+    color: '#b3b3b3',
+    angle: 45
+  });
   var self = this,
     mapObject = this.mapObject,
     options = this.getOptions();
     // Adds tileLayer from the Map Class to the mapObject
-    this.STRIPE_PATTERN.addTo(mapObject); //adding pattern definition to mapObject
+    stripes.addTo(mapObject); //adding pattern definition to mapObject
     this.TILE_LAYER.addTo(mapObject);
     //this.requestInitialData(options);
     this.loadDistrictLayer(function(data) {
@@ -104,16 +105,15 @@ Map.prototype.createPopups = function() {
 
 
 Map.prototype.getOptions = function() {
-  debugger
   var self = this,
     sentenceCase = this.sentenceCase,
     stripes = this.stripes,
-    fischerValue = this.dataSet + "_scale_" + this.groups[this.population],
-    punishmentPercentValue = "percent_" + this.dataSet + "_" + this.groups[this.population],
-    percentStudentsValue = "percent_students_" + this.groups[this.population],
-    groupNameInPopup = this.groupDisplayName[this.population],
-    displayvalue = this.displaypunishment[this.dataSet],
-    schoolYear = this.schoolYear;
+    fischerValue = this.dataSet + "_scale_" + this.GROUPS[this.population],
+    punishmentPercentValue = "percent_" + this.dataSet + "_" + this.GROUPS[this.population],
+    percentStudentsValue = "percent_students_" + this.GROUPS[this.population],
+    // groupNameInPopup = this.groupDisplayName[this.population],
+    displayvalue = this.PUNISHMENT_TYPES[this.dataSet],
+    schoolYear = this.year;
 
   return {
     style: function(feature) {
@@ -192,7 +192,7 @@ Map.prototype.fetchStatistics = function(year, ethnicity, action, cb) {
   } else {
     return $.ajax({
       dataType: "json",
-      url: '/api/v1/statistics?ethnicity_name=' + ethnicity + '&year=' + year '&action_type=' + action,
+      url: '/api/v1/statistics?ethnicity_name=' + ethnicity + '&year=' + year + '&action_type=' + action,
       context: this,
       success: function(data) {
         this.stats[cacheKey] = data
@@ -213,7 +213,7 @@ Map.prototype.cacheKey = function(year, ethnicity, action) {
 Map.prototype.loadDistrictLayer = function(cb) {
   return $.ajax({
     dataType: "json",
-    url: '/api/v1/districts',
+    url: '/data/base_districts.geojson',
     context: this,
     success: callback
   });
